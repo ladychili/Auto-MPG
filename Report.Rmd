@@ -2,11 +2,105 @@
 title: "ID5059 - P1 - Auto MPG Analysis"
 author: '180024570'
 date: "04/03/2019"
-output: html_document
+output:
+  pdf_document:
+    extra_dependencies: subfig
+    fig_caption: yes
+    includes: null
+    keep_tex: yes
+    latex_engine: xelatex
+    number_sections: yes
+header-includes:
+ \usepackage{booktabs}
+ \usepackage{longtable}
+ \usepackage{array}
+ \usepackage{enumitem} 
+ \usepackage{multirow}
+ \usepackage[table]{xcolor}
+ \usepackage{wrapfig}
+ \usepackage{float}
+ \floatplacement{figure}{H}
+ \usepackage[bottom]{footmisc}
+bibliography: reference.bib
+csl: harvard.csl
+nocite: | 
+  @r, @tidyverse
 ---
 
+
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE,
+                      include = TRUE)
+
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+
+dat <- read_csv("data/auto-data.csv")[,-1]
+attach(dat)
 ```
 
-## 
+*I conﬁrm that the following report and associated code is my own work, except where clearly indicated.*
+
+# Introduction
+
+This practical analyse the pairwise relationships of MPG against displacement, horsepower, weight and acceleration. Linear models, bin smooth models and B-spline models are implemented based on each of the four predictors of MPG. The fit of these models is evaluated by RSS and a measure of generalisation error, in this case, AIC.
+
+
+# Linear Models
+
+
+x-axis, degree 1-10
+
+y-axis, RSS  figure 1
+y-axis, AIC  figure 2
+y-axis, 10-fold CV MSE  figure 3
+
+
+
+## Displacement as Predictor
+
+```{r lm-disp}
+lm.disp <- lm(mpg ~ displacement)
+plot(mpg~displacement)
+abline(coef(lm.disp))
+```
+
+
+# Bin Smooth Models
+
+Choose a *size* of bin??? why this??
+
+Decreasing the number of bins (increasing the size) would increase RSS, and increasing the number of bins (reducing the size) would lessen RSS. Excess bins (bin length too small) can leads to overfitting, despite the lower RSS.
+
+
+
+# B-spline Models
+
+Choose *number of knot* and *poly degree*???
+
+
+# Conclusion
+
+... has the best predictive ability,
+because ...
+
+
+
+
+Conclude the report here
+
+\newpage
+# Reference
+
+<div id="refs"></div>
+
+# Appendix
+
+## R code
+
+```{r ref.label=knitr::all_labels(echo==FALSE), eval = FALSE}
+ #directly quote all the codes
+```
+

@@ -34,7 +34,7 @@ y <- data[,2]
 #-------------------------------------
 #data
 #-------------------------------------
-data = read.csv("data/auto-data.csv", sep=",", header=T)
+data = read.csv("../data/auto-data.csv", sep=",", header=T)[,-1]
 attach(data)
 
 #MPG
@@ -77,6 +77,7 @@ plot(x,y, col="darkblue", pch=20)
 #       opt   - 1: returns adj R-squared, 0: returns nothing
 #       ploto - 1: Create new plot, 0: no new plot
 linreg(x, y, ploto=1)
+polreg(x, y, 1, ploto =1)
 
 #-------------------------------------
 #Polynomial Regression
@@ -99,12 +100,13 @@ polreg(x,y,10, ploto=1)
 #Input Arguments binsmoothREG(...):
 #       x - vector containing the explonatory variable
 #       y - vector containing the dependent variable
-#       p - nth order polynomial
+#       binlength - size of bins
+#       knotsdef - NULL
 #       ouptut - 1: delivers some output, 0: no output
 #       opt   - 1: returns adj R-squared, 0: returns nothing
 #       ploto - 1: Create new plot, 0: no new plot
 p <- highestAdjR2(x,y,iter=200, binsmoothREG)
-binsmoothREG(x,y,120, ploto=1)
+binsmoothREG(x,y,60, ploto=1)
 
 
 #-------------------------------------
@@ -120,7 +122,7 @@ binsmoothREG(x,y,120, ploto=1)
 #       opt   - 1: returns adj R-squared, 0: returns nothing
 #       ploto - 1: Create new plot, 0: no new plot
 p <- highestAdjR2(x, y, iter=25, truncReg, degree=3)
-truncReg(x,y,knots=10, knotsdef=c(), degree=3, ploto=1)
+truncReg(x,y,knots=24, knotsdef=c(), degree=3, ploto=1)
 
 #-------------------------------------
 #Cubic Spline Regression
@@ -134,7 +136,7 @@ truncReg(x,y,knots=10, knotsdef=c(), degree=3, ploto=1)
 #       opt   - 1: returns adj R-squared, 0: returns nothing
 #       ploto - 1: Create new plot, 0: no new plot
 p <- highestAdjR2(x, y, iter=25, csreg)
-csreg(x, y,knots=11, knotsdef=c(), ploto=1)
+csreg(x, y,knots=24, knotsdef=c(), ploto=1)
 
 
 #-------------------------------------
@@ -164,9 +166,10 @@ prscsreg(x, y, 10, knotsdef=c(), 0.01105733  , ploto=1, indvploto=1)
 #       opt   - 1: returns adj R-squared, 0: returns nothing
 #       ploto - 1: Create new plot, 0: no new plot
 p <- highestAdjR2(x, y,iter=25, bsplinereg, degree=3)
-bsplinereg(x, y, knots=7, knotsdef=c(), degree=3, ploto=1)
+bsplinereg(x, y, knots=9, knotsdef=c(), degree=3, ploto=1)
 
-
+# knots = 7, RSS = 6818, AdjR2 = 0.7115, AIC = 2284.179
+# knots = 9, RSS = 6724, AdjR2 = 0.7141, AIC = 2282.617
 
 #-------------------------------------
 #Legend
