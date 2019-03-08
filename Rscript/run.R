@@ -53,12 +53,18 @@ myplot <- function(pred, data, degree){
 
 mybinsmooth <- function(pred, binlength=0, knotsdef=NULL, output=1, ploto=1, opt=0){
 
-  y <- mpg[train]
+  y <- mpg
   x <- switch(pred,
-              d = displacement[train],
-              h = horsepower[train],
-              w = weight[train],
-              a = acceleration[train])
+              d = displacement,
+              h = horsepower,
+              w = weight,
+              a = acceleration)
+  
+  y.test <- y[-train] # subset test data
+  x.test <- x[-train]
+  
+  y <- y[train] # subset training data
+  x <- x[train]
   
   y <- y[order(x)]
   x <- sort(x)
@@ -94,6 +100,25 @@ mybinsmooth <- function(pred, binlength=0, knotsdef=NULL, output=1, ploto=1, opt
   #AIC
   aic <- AIC(reg)
   
+  
+  bound <- numeric(bins + 1)
+  for (i in 1:bins+1) {
+    if(i==bins+1) bound[i] <- Inf
+    else{bound[i] <- x[(i-1)*binlength]}
+    # fix duplicated boundaries which can cause cut error later
+    for (j in 1:25) {
+      if((i>j) && (abs(bound[i] - bound[i-j])) < 1E-15) {
+        bound[i] <- bound[i] + j*1e-03}
+    }
+  }
+  
+  index <- cut(x.test, bound)
+  levels(index) <- 1:length(coef(reg))
+  y.pred <- coef(reg)[index]
+  
+  #---- MSE generalisation error ----
+  mse <- mean((y.test - y.pred)**2)
+  
   if(output==1)
   {
     #Summary output  
@@ -104,7 +129,7 @@ mybinsmooth <- function(pred, binlength=0, knotsdef=NULL, output=1, ploto=1, opt
     cat("R-squared: ", R2, "\n")
     cat("Adjusted R-squared: ", R2adj, "\n")
     cat("AIC: ", aic, "\n")
-
+    cat("MSE: ", mse, "\n")
     
     #Graphic 
     yl <- "mpg"
@@ -171,8 +196,70 @@ pickBin <- function(pred, iter, FUN, ...){
 #--------------------------------------------------
 
 # Bin Smooth - ?size of bin
+x <- acceleration
+y <- mpg
 
+y.test <- y[-train] # subset test data
+x.test <- x[-train]
+
+y <- y[train] # subset training data
+x <- x[train]
+
+y <- y[order(x)]
+x <- sort(x)
+n <- length(x)
+binlength=1
+#Devide data into bins
+bins = ceiling(length(x) / binlength)
+#Create Design Matrix without intercept
+DM <- matrix(1,length(x),bins)
+#Set all elements not corresponding to region j equal 0
+
+for(i in 1:bins)
+{
+  if(i==1) { xstart = 1 }
+  if(i>1) { xstart = (i-1)*binlength+1 }
+  xend = min(xstart + binlength-1, length(x))
+  binelements <- xstart:xend
+  elements <- 1:length(x)
+  elements[binelements] <- 0
+  DM[elements,i] <- 0
+}
+
+#Perform Linear Regreesion
+reg <- lm(y~0+DM)
+mean((y.test-predict(reg, data.frame(x.test)))^2)
+
+plot(x.test, y.test, col = "blue")
+points(x.test,y.pred)
+
+
+#----- cut!
+bound <- numeric(bins + 1)
+for (i in 1:bins+1) {
+  if(i==bins+1) bound[i] <- Inf
+  else{bound[i] <- x[(i-1)*binlength]}
+  
+  # if(bound[i] == bound[i-1] -0.000) bound[i] <- bound[i] + 0.001
+  # if(bound[i] == bound[i-1] -0.001) bound[i] <- bound[i] + 0.002
+  # if(bound[i] == bound[i-1] -0.002) bound[i] <- bound[i] + 0.003
+  for (j in 1:25) {
+    # tmp <- bound[i-1] - (j-1)*1e-04
+    
+    if((i>j) && (abs(bound[i] - bound[i-j])) < 1E-15) {
+      bound[i] <- bound[i] + j*1e-03}
+  }
+}
+bound
+length(unique(bound))
+
+index <- cut(x.test, bound)
+levels(index) <- 1:length(coef(reg))
+y.pred <- coef(reg)[index]
+
+#-----
 # B-spline: knots? degree?
+
 
 
 library(splines)
@@ -252,19 +339,19 @@ train <- sample(nrow(dat), nrow(dat)/2)
 
 # displacement
 pickBin("d",200, mybinsmooth)
-mybinsmooth("d",binlength = 11)
+mybinsmooth("d",binlength = 2)
 
 # horsepower
 pickBin("h",200, mybinsmooth)
-mybinsmooth("d",binlength = 4)
+mybinsmooth("d",binlength = 10)
 
 # weight
 pickBin("w", 200, mybinsmooth)
-mybinsmooth("w", binlength = 47)
+mybinsmooth("w", binlength = 17)
 
 # acceleration
 pickBin("a", 200, mybinsmooth)
-mybinsmooth("a", binlength = 3)
+mybinsmooth("a", binlength = 48)
 
 
 # B-spline - varying knots and degrees ------------------------------------
