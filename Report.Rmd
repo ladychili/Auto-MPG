@@ -1,9 +1,12 @@
 ---
 title: "ID5059 - P1 - Auto MPG Analysis"
+subtitle: "MSc Data-Intensive Analysis"
 author: '180024570'
 date: "04/03/2019"
 output:
   pdf_document:
+    toc: yes
+    toc_depth: 2
     extra_dependencies: subfig
     fig_caption: yes
     includes: null
@@ -24,20 +27,28 @@ header-includes:
 bibliography: reference.bib
 csl: harvard.csl
 nocite: | 
-  @r, @tidyverse
+  @r, @tidyverse, @boot, @knitr
 ---
 
 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,
-                      include = TRUE)
+                      include = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      results='hide', 
+                      fig.align = 'center',
+                      fig.height=3, fig.width=7)
 
 library(tidyverse)
 library(knitr)
 library(kableExtra)
+library(boot)
+library(splines)
 
 dat <- read_csv("data/auto-data.csv")[,-1]
+dat <- na.omit(dat)
 attach(dat)
 ```
 
@@ -45,62 +56,321 @@ attach(dat)
 
 # Introduction
 
-This practical analyse the pairwise relationships of MPG against displacement, horsepower, weight and acceleration. Linear models, bin smooth models and B-spline models are implemented based on each of the four predictors of MPG. The fit of these models is evaluated by RSS and a measure of generalisation error, in this case, AIC.
+This practical analyse the pairwise relationships of MPG against Displacement, Horsepower, Weight and Acceleration. Linear models (section 2), bin smooth models (section 3) and B-spline models (section 5) are implemented based on each of the four predictors. The fit of these models is evaluated by RSS, AIC and a measure of generalisation error, Mean Squred Error of prediction of test data.
+
+```{r load}
+load("Rscript/env3.RData")
+set.seed(5059)
+train <- sample(nrow(dat), nrow(dat)/2)
+```
+
+> Orange line is the minimum.
+> 6 observations without hoursepower values are omitted in this analysis.
+
 
 
 # Linear Models
 
+In this section, linear models are implemented using Displacement, Horsepower, Weight and Acceleration to predict MPG. The candidates models for each predictor are based on polynomial terms with degree from 1 to 15. RSS, AIC and MSE of 10-fold cross validation are used as measurement of model fitting.
 
-x-axis, degree 1-10
-
-y-axis, RSS  figure 1
-y-axis, AIC  figure 2
-y-axis, 10-fold CV MSE  figure 3
+## Linear Models for Displacement
 
 
 
-## Displacement as Predictor
-
-```{r lm-disp}
-lm.disp <- lm(mpg ~ displacement)
-plot(mpg~displacement)
-abline(coef(lm.disp))
+```{r lm-disp, fig.cap="Candidate Linear Models for Displacement"}
+set.seed(5059) # to fix CV error
+myplot(pred ="d", dat, 15)
 ```
+
+
+Figure 1 shows the evaluation of 15 candidate models in terms of three measurement. *RSS*, *AIC* and *MSE* of 10-fold cross validation appear to have similar trends when the degree lower than 10. *RSS* continues to gently decline after that, but *AIC* and *MSE* start rising because of overfitting.
+
+Therefore, the one with degree 10 is selected and shown in figure 2. 
+
+```{r lm-d-best, results='asis', fig.cap="Selected Linear Models for Displacement", fig.height=4, fig.width=7}
+lm.d <- glm(mpg ~ poly(displacement, degree = 10))
+plot(mpg ~ displacement, col='grey', pch=20, cex=2, cex.main = 1,
+     main = "Linear Model, degree = 10")
+lines(x = min(displacement):max(displacement), 
+      y = predict(lm.d, data.frame(displacement=min(displacement):max(displacement))), 
+      lwd=2, lty=1, col='darkgreen')
+
+cat("RSS: ", rss(lm.d), "\n")
+cat("AIC: ", AIC(lm.d), "\n")
+set.seed(5059)
+lm.d.cv <- cv.glm(data = dat, lm.d,K = 10)
+cat("MSE: ", lm.d.cv$delta[1], "\n")
+```
+
+## Linear Models for Horsepower
+
+```{r lm-h, fig.cap="Candidate Linear Models for Horsepower"}
+set.seed(5059) # to fix CV error
+myplot(pred ="d", dat, 15)
+```
+
+Similar to Displacement, figure 3 shows the optimal model for Horsepower is also with degree 10. The model is illustrated in figure 4.
+
+```{r lm-h-best,  results='asis', fig.cap="Selected Linear Models for Horsepower", fig.height=4, fig.width=7}
+lm.h <- glm(mpg ~ poly(horsepower, degree = 8))
+plot(mpg ~ horsepower, col='grey', pch=20, cex=2, cex.main = 1,
+     main = "Linear Model, degree = 8")
+lines(x = min(horsepower):max(horsepower), 
+      y = predict(lm.h, data.frame(horsepower=min(horsepower):max(horsepower))), 
+      lwd=2, lty=1, col='darkgreen')
+
+cat("RSS: ", rss(lm.h), "\n")
+cat("AIC: ", AIC(lm.h), "\n")
+set.seed(5059)
+lm.h.cv <- cv.glm(data = dat, lm.h,K = 10)
+cat("MSE: ", lm.h.cv$delta[1], "\n")
+```
+
+
+## Linear Models for Weight
+
+```{r lm-w, fig.cap="Candidate Linear Models for Weight"}
+set.seed(5059) # to fix CV error
+myplot(pred ="w", dat, 15)
+```
+
+Figure 5 illustrates that the linear models created using Weight have different trends from the previous two. The generalisation errors based on 10-fold cross validation show slight variation between degree 2 and 8, while AIC score shows a steep fall from degree 1 to 2 and then steadily increace.
+
+The optimal model for Weight, shown in figure 6, is selected to be the one with polynomial degree equal to 2.
+
+```{r lm-w-best,  results='asis', fig.cap="Selected Linear Models for Weight", fig.height=4, fig.width=7}
+lm.w <- glm(mpg ~ poly(weight, degree = 2))
+plot(mpg ~ weight, col='grey', pch=20, cex=2, cex.main = 1,
+     main = "Linear Model, degree = 2")
+lines(x = min(weight):max(weight), 
+      y = predict(lm.w, data.frame(weight=min(weight):max(weight))), 
+      lwd=2, lty=1, col='darkgreen')
+
+cat("RSS: ", rss(lm.w), "\n")
+cat("AIC: ", AIC(lm.w), "\n")
+set.seed(5059)
+lm.w.cv <- cv.glm(data = dat, lm.w,K = 10)
+cat("MSE: ", lm.w.cv$delta[1], "\n")
+```
+
+## Linear Models for Acceleration
+
+```{r lm-a, fig.cap="Candidate Linear Models for Acceleration"}
+set.seed(5059) # to fix CV error
+myplot(pred ="a", dat, 15)
+```
+
+According to figure 7, the MSE barely varies from degree 1 to 10, but the error values are considerably larger than all the previous. The optimal model for Acceleration is selected to be the one with the lowest AIC score, degree equal to 4 and shown in figure 8.
+
+
+```{r lm-a-best,  results='asis', fig.cap="Selected Linear Models for Acceleration", fig.height=4, fig.width=7}
+lm.a <- glm(mpg ~ poly(acceleration, degree = 4))
+plot(mpg ~ acceleration, col='grey', pch=20, cex=2, cex.main = 1,
+     main = "Linear Model, degree = 4")
+lines(x = min(acceleration):max(acceleration), 
+      y = predict(lm.a, data.frame(acceleration=min(acceleration):max(acceleration))), 
+      lwd=2, lty=1, col='darkgreen')
+
+cat("RSS: ", rss(lm.a), "\n")
+cat("AIC: ", AIC(lm.a), "\n")
+set.seed(5059)
+lm.a.cv <- cv.glm(data = dat, lm.a,K = 10)
+cat("MSE: ", lm.a.cv$delta[1], "\n")
+```
+
+
+## Summary for Linear Models
+
+On the basis of the linear models implemented in the section, it is easy to conclude that the *Residual Sum of Square* monotonically decreases with the increase of model comlexity, namely the degree of polynomial terms in this case. As to *Akaike information criterion*, the penalty on the number of model parameters would outweight the benefits of model complexity beyond a certain degree. *Mean Squard Error* based on cross validation will also increase when the model is overfitting.
+
+
+```{r lm-sum, results='hold'}
+lmlst <- list(lm.d, lm.h, lm.w, lm.a)
+lmcv.lst <- list(lm.d.cv, lm.h.cv, lm.w.cv, lm.a.cv)
+lm.rss <- lapply(lmlst, rss)
+lm.aic <- lapply(lmlst, AIC)
+lm.mse <- lapply(lmcv.lst, function(x) {'$' (x, 'delta') [1]})
+
+sum <- data.frame(RSS = unlist(lm.rss), 
+                  AIC = unlist(lm.aic),
+                  MSE = unlist(lm.mse))
+rownames(sum) <- c("Displacement", "Horsepower", "Weight", "Acceleration")
+
+kable(sum, caption = "Summary of Model Fitting Measurement for the Selected Linear Model",
+      digits = 2, booktabs = T, longtable = T)
+```
+
+Table 1 summarises the evaluation for the four optimal model based on Displacement, Horsepower, Weight and Acceleration. It's clear that the Acceleration model is the is far worse than the other three. Overall, the Displacement model and the Weight are as good at predition, while the Weight model with 2 degree is much simpler than degree 10 of the Displacement model.
 
 
 # Bin Smooth Models
 
-Choose a *size* of bin??? why this??
-
-Decreasing the number of bins (increasing the size) would increase RSS, and increasing the number of bins (reducing the size) would lessen RSS. Excess bins (bin length too small) can leads to overfitting, despite the lower RSS.
+Dataset is randomly split into two halves (each has 196 observations) in this section, one used as training data to fit models and the other as test data to obtain generalisation error. Four predictors are fitted into bin smoorh models, and candidate models for each predictor are across bin length from 1 to 200. One optimal bin smooth model with the most reasonable bin length is selected for each predictor, and the four selected models competes with each other.
 
 
+
+## Bin Smooth Models for Displacement
+
+
+```{r bin-d, fig.cap="Candidate Bin Smooth Models for Displacement"}
+pickBin("d",200, mybinsmooth)
+```
+
+
+```{r bin-d-best, results='asis', fig.cap="Selected Bin Smooth Models for Displacement", fig.height=4, fig.width=7}
+bin.d <- mybinsmooth("d",binlength = 10, opt = 1)
+```
+
+Figure 9 shows the most reasonable bin length is around 10, and figure 10 illustrates the optimal bin smooth model for predictor Displacement.
+
+## Bin Smooth Models for Horsepower
+
+```{r bin-h, fig.cap="Candidate Bin Smooth Models for Horsepower"}
+pickBin("h",200, mybinsmooth)
+
+```
+
+
+```{r bin-h-best, results='asis', fig.cap="Selected Bin Smooth Models for Horsepower", fig.height=4, fig.width=7}
+bin.h <- mybinsmooth("d",binlength = 20, opt = 1)
+```
+
+Figure 11 shows the most reasonable bin length fall between 10 - 40, and figure 12 illustrates the selected optimal bin smooth model for predictor Horsepower, with bin length equal to 20.
+
+## Bin Smooth Models for Weight
+
+```{r bin-w, fig.cap="Candidate Bin Smooth Models for Weight"}
+pickBin("w",200, mybinsmooth)
+```
+
+
+```{r bin-w-best, results='asis', fig.cap="Selected Bin Smooth Models for Weight", fig.height=4, fig.width=7}
+bin.w <- mybinsmooth("w", binlength = 20, opt = 1)
+```
+
+Figure 13 shows the most reasonable bin length fall between 10 - 30, and figure 14 illustrates the selected optimal bin smooth model for predictor Weight, with bin length equal to 20.
+
+## Bin Smooth Models for Acceleration
+
+```{r bin-a, fig.cap="Candidate Bin Smooth Models for Acceleration"}
+pickBin("a",200, mybinsmooth)
+
+```
+
+```{r bin-a-best, results='asis', fig.cap="Selected Bin Smooth Models for Acceleration", fig.height=4, fig.width=7}
+bin.a <- mybinsmooth("a", binlength = 25, opt = 1)
+```
+
+
+Figure 15 shows that the *AIC* and *MSE* lines are way more wiggly than all the previous, which indicates the smooth models for Acceleration have much uncertainty than others. And similar to linear model section, the *AIC* and *RSS* are also reletively higher than models based on other three predictors.
+
+Figure 16 illustrates the selected optimal bin smooth model for predictor Acceleration, with bin length equal to 25.
+
+
+## Summary for Bin Smooth Models
+
+The most obvious pattern within bin smooth models is that decreasing the number of bins (increasing the size) would increase *RSS*, and increasing the number of bins (reducing the size) would lessen *RSS*. 
+Generally, four groups of models all show better predictive ability at smaller bin length than at large bin length. However, excess of bins (namely bin length too small) usually leads to overfitting, despite the lower *RSS*.
+
+```{r bin-sum, results='asis'}
+binsum <- as.data.frame(rbind(bin.d, bin.h, bin.w, bin.a))
+rownames(binsum) <- c("Displacement", "Horsepower", "Weight", "Acceleration")
+colnames(binsum) <- c("Adjusted R2", "AIC", "RSS", "MSE")
+binsum <- binsum[c( "RSS", "AIC", "MSE","Adjusted R2")]
+kable(binsum, caption = "Summary of Model Fitting Measurement for the Selected Bin Smooth Model",
+      digits = 2, booktabs = T, longtable = T)
+```
+
+The measurements of four optimal models are summarized below in table 2.
+*AIC* scores of bin smooth models are around 1000, clearly lower than those of linear models (around 2000), because bin smooth model is simpler than high degree linear regression model. 
+Acceleration is still the worst predictor, the three other models have similar predictive abilities. Displacement model outdo other three models in terms of *RSS*, *AIC* and adjusted $R^2$, but the generalisation error (*MSE*) is slightly higher than of Weight model.
 
 # B-spline Models
 
-Choose *number of knot* and *poly degree*???
+In this section, four predictors are respectively fitted to four group of b-spline models. There are 30 candidate models in each group, with the number of knots from 1 to 10 and degree from 1 to 3. The knots are placed in a uniform fashion. One optimal model is selected for each group/predictor, and four optimal b-spline model compete.
+The training data and test data are the same as used in the last section. The generalisation error is the *MSE* of prediction on test data. 
+
+
+## B-spline Models for Displacement
+
+```{r bs-d, fig.cap="Candidate B-spline Models for Displacement"}
+ppickbs("d",nknots = 10, degree = 3)
+```
+
+Figure 17 shows that degree 3 models have loewr *RSS* than models with degree 1 and 2, and *AIC* scores are also lower when the number of knots exceeding 6. However, degree 3 models highly diverge with large number of knots, resulting extreme generalisation errors.
+
+The optimal b-spline model for Displacement is selected to be the one with 7 knots and degree equal to 3, shown in figure 18. The vertical dotted lines indicate positions of the knots. (hereafter the same)
+
+```{r bs-d-opt, results='asis', fig.cap="Selected B-spline Models for Displacement", fig.height=4, fig.width=7}
+bs.d <- mybspline("d", 7, 3)
+```
+
+
+## B-spline Models for Horsepower
+
+```{r bs-h, fig.cap="Candidate B-spline Models for Horsepower"}
+ppickbs("h",nknots = 10, degree = 3)
+```
+
+Figure 19 shows that *RSS* of degree 3 models are generally lower than others but *MSE* diverge since the number of knots surpass 5. The *AIC* plot seems jumbled up, but the fluctuation range is generally within 5, not problematic. 
+
+The optimal b-spline model for Horsepower is selected to be the one with 5 knots and degree equal to 3, shown in figure 20.
+
+
+```{r bs-h-opt, results='asis', fig.cap="Selected B-spline Models for Horsepower", fig.height=4, fig.width=7}
+bs.h <- mybspline("h", 5,3)
+```
+
+
+## B-spline Models for Weight
+
+```{r bs-w, fig.cap="Candidate B-spline Models for Weight"}
+ppickbs("w",nknots = 10, degree = 3)
+```
+
+Figure 21 shows that *AIC* and *MSE* trend to increase after number of knots surpass 3 and 4. The optimal b-spline model for Weight is selected to be the one with 4 knots and degree equal to 3, shown in figure 22.
+
+```{r bs-w-opt, results='asis', fig.cap="Selected B-spline Models for Weight", fig.height=4, fig.width=7}
+bs.w <- mybspline("w", 4, 3)
+```
+
+## B-spline Models for Acceleration
+
+```{r bs-a, fig.cap="Candidate B-spline Models for Acceleration"}
+ppickbs("a",nknots = 10, degree = 3)
+```
+
+Figure 23 shows that there is not much difference between models with three degrees.
+The optimal b-spline model for Weight is selected to be the one with 4 knots and degree equal to 2, shown in figure 24.
+
+```{r bs-a-opt, results='asis', fig.cap="Selected B-spline Models for Acceleration", fig.height=4, fig.width=7}
+bs.a <- mybspline("a",4,2)
+```
+
+
+## Summary for B-spline Models
+
+Generally, the number of knots and degree of polynomial determine the flexibility of the model: the more the knots, the more flexible the model; the higher the degree, the more flexible the model. It'd better to mannually place knots at where we feel the underlying function might vary rapidly, but in practice it is more feasible to place knots evenly across the range of the covariate. Very importantly, severe diverge can happen when fitting with too many knots and higher degree.
+
+The measurements of four selected b-spline models are summarized in table 3. The Acceleration model is still the worst, and the three other models are as good in general. Similar to the previous section, the Displacement model has the best *RSS*, *AIC* and adjusted $R^2$, and the Weight model has the best generalisation error (*MSE*).
+
+```{r bs-sum, results='asis'}
+bssum <- as.data.frame(rbind(bs.d, bs.h, bs.w, bs.a))
+rownames(bssum) <- c("Displacement", "Horsepower", "Weight", "Acceleration")
+colnames(bssum) <- c("Adjusted R2", "AIC", "RSS", "MSE")
+bssum <- bssum[c( "RSS", "AIC", "MSE","Adjusted R2")]
+kable(bssum, caption = "Summary of Model Fitting Measurement for the Selected B-spline Model",
+      digits = 2, booktabs= TRUE, longtable = TRUE)
+```
 
 
 # Conclusion
 
-... has the best predictive ability,
-because ...
+Weight is regarded to have the best predictive ability, because three kinds of models fitted with it have the lowest generalisation errors in comparison to models fitted with other predictors. Displacement is almost as good as Weight with slightly higher generalisation errors, and the models fitted with it have the lowest *RSS*, *AIC* and the highest adjusted $R^2$. Acceleration is incompetent at predicting MPG, because it is barely correlated to mpg, as shown in the scatter plots.
 
 
-
-
-Conclude the report here
-
-\newpage
 # Reference
 
 <div id="refs"></div>
 
-# Appendix
-
-## R code
-
-```{r ref.label=knitr::all_labels(echo==FALSE), eval = FALSE}
- #directly quote all the codes
-```
 
