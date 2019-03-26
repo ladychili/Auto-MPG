@@ -1,0 +1,27 @@
+Feedback for ID5059-P01 - Tom Kelsey - March 2019
+
+
+a) Code 
+
+Good
+
+b) Charts
+
+Figure 1 & 3 interesting. I'd select the degree 2 models, even though 14& 10 appear to outperform them. Model selection estimates (and all othe model quality measures) are informative rather than prescriptive, and the overfit/underfit charts often don't have the classical low value followed by a steady increase. So we go for the least complex model that has acceptably low value for the data. This is quadratic in this instance. The message is: don't select the lowest AIC (or whatever) if there has been a local minimum with lower model complexity (unless further analysis suggests this).
+
+c) Questions
+1. Which attribute has the best predictive ability and why?
+
+Good
+
+2. What size of bins did you choose for the bin smoothing and why? What effect would decreasing or increasing the number of bins have on the re- sidual sum of squares?
+
+Good
+
+3. What knots and degree of polynomial did you pick for the b-splines and why?
+
+Good
+
+d) Report
+
+You've done everything correctly, but missed the important point that "lower AIC is better" as I said in lectures is true in theory. For real data we often get a choice of models with low AIC (or other measure) and need to do more work to fully investigate the overfit/underfit tradeoff.
